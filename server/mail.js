@@ -1,21 +1,27 @@
 // ============================================================
-// E-mail — foglalási kérelem a tulajnak (SMTP, Gmail, nodemailer).
+// E-mail — foglalási kérelem a tulajnak (nodemailer).
+//
+// AUTH NÉLKÜLI küldés, ahogy az orwaweb (public/api/book.php): közvetlenül az
+// orwa.hu MX-ére (aspmx.l.google.com:25) — NINCS SMTP-jelszó, NINCS titok. Az
+// aspmx jelszó nélkül fogadja az orwa.hu-ra címzett levelet (ez a domain MX-e).
+// STARTTLS opportunisztikus; a cert-nevet nem kényszerítjük (deliverability >
+// szigorú TLS-verifikáció ehhez a belső, inbound-MX küldéshez).
+//
 // A törzs a tárolt quote-ból dolgozik (nem a kliensből) → nem hamisítható ár.
-// Mostantól AKÁR KÉT ajánlat (apartman + vendégház) szerepelhet a quote-ban.
+// Akár KÉT ajánlat (apartman + vendégház) szerepelhet a quote-ban.
 // ============================================================
 'use strict'
 
 import nodemailer from 'nodemailer'
 
-const SMTP = { host: 'smtp.gmail.com', port: 587, user: 'admin@orwa.hu', pass: process.env.GMAIL_APP_PASSWORD || '' }
 const MAIL_FROM = 'ORWA Admin <admin@orwa.hu>'
 const MAIL_TO = 'ORWA <orosz@orwa.hu>'
 
 const transporter = nodemailer.createTransport({
-  host: SMTP.host,
-  port: SMTP.port,
-  secure: SMTP.port === 465,
-  auth: SMTP.user ? { user: SMTP.user, pass: SMTP.pass } : undefined,
+  host: 'aspmx.l.google.com',
+  port: 25,
+  secure: false,                       // STARTTLS opportunisztikusan, ha támogatott
+  tls: { rejectUnauthorized: false },  // ne bukjon cert-név-eltérésen (mint az orwaweb)
 })
 
 const typeLabel = { apartman: 'apartman', house: 'vendégház' }

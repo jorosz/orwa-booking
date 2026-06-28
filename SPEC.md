@@ -31,7 +31,7 @@ publikált port nélkül. A két frontend (weboldal, naptár) a saját **proxy-r
                       │  POST /api/quote · /api/book         │
                       │  GET/POST /api/bookings*             │
                       │  SQLite orwa.db + quotes.log (/data) │
-                      │  SMTP → Gmail (GMAIL_APP_PASSWORD)   │
+                      │  e-mail → aspmx.l.google.com:25 (auth nélkül) │
                       └─────────────────────────────────────┘
 ```
 
@@ -61,9 +61,10 @@ szét kell választania**:
 
 ## 3. Konfiguráció
 
+A service-nek **nincs titka**: az e-mail auth nélkül megy (lásd §5, `/api/book`).
+
 | Env | Leírás | Default |
 |---|---|---|
-| `GMAIL_APP_PASSWORD` | Gmail app-jelszó (az egyetlen titok) | `""` (SMTP nem küld) |
 | `DB_PATH` | a SQLite DB helye | `/data/orwa.db` (lokál: `server/orwa.db`) |
 | `PORT` | a service portja | `8000` |
 | `SEED_DEMO` | `1` esetén 31 demo-foglalás üres táblába (dev) | nincs (üres DB) |
@@ -132,6 +133,10 @@ Bemenet: `{ "id": "uuid", "name", "email", "email2", "phone", "lang" }`.
 Validáció: `errName`, `errEmail`, `errEmailMatch`, `errPhone`; ismeretlen `id` → 422.
 Hatás: NDJSON log + plain-text e-mail a tulajnak (a tárolt quote-ból, **minden
 ajánlattal**). Válasz: `{ "success": true }`.
+
+**E-mail (auth nélkül, mint az orwaweb):** közvetlenül az orwa.hu MX-ére —
+`aspmx.l.google.com:25`, nincs SMTP-jelszó/titok, STARTTLS opportunisztikus.
+From `admin@orwa.hu`, To `orosz@orwa.hu`, Reply-To a vendég. (`server/mail.js`)
 
 ### `GET /api/bookings?year=&month=` — a hónap foglalásai (admin)
 
