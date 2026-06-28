@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+.env
+# Helyi futtatás melléktermékei (a /data volume tartalma élesben)
+*.db
+*.db-wal
+*.db-shm
+quotes.log

@@ -1,0 +1,11 @@
+# A build-kontextusból kihagyandó — a node_modules (és a better-sqlite3 natív
+# binárisa) a konténerben, a cél-platformra (linux/amd64) fordul; a host
+# (Mac/arm64) verziója NEM kerülhet be.
+node_modules/
+npm-debug.log*
+.DS_Store
+*.db
+*.db-wal
+*.db-shm
+quotes.log
+.env

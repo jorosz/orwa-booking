@@ -1,0 +1,19 @@
+{
+  "name": "orwa-booking",
+  "version": "1.0.0",
+  "description": "ORWA — egyesített booking backend: irányár (quote) + foglalások (bookings) egy service-ben. Lásd SPEC.md.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "SEED_DEMO=1 node --watch server/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2",
+    "nodemailer": "^6.9.16"
+  }
+}
