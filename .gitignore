@@ -5,4 +5,3 @@ node_modules/
 *.db
 *.db-wal
 *.db-shm
-quotes.log

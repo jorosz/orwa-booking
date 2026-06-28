@@ -1,0 +1,35 @@
+# ============================================================
+# PRODUCTION build/push (az orwa-naptar/orwa-new mintájára). A `make prod` ennek a
+# `build:` szekciójából buildeli+pusholja az image-et az ECR-be (docker buildx
+# bake … --push, linux/amd64).
+#
+# ⚠️ Az ÉLES futtatás NEM innen megy: a live stacket a konszolidált deploy-compose
+# vezényli (../orwa-server/docker-compose.yml), ahol ez a service `orwa-booking`
+# néven fut, és a /data volume a MIGRÁLT `orwa_naptar_data` (a valódi foglalások!).
+# Ez a fájl a buildhez + standalone teszteléshez van.
+#
+# A service belső backend: NINCS publikált port, NINCS titok (az e-mail auth nélkül
+# megy, aspmx.l.google.com). Lásd SPEC.md, DEPLOY.md.
+# ============================================================
+services:
+  orwa-booking:
+    image: 197795502251.dkr.ecr.eu-central-1.amazonaws.com/orwa-booking:latest
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+      tags:
+        - 197795502251.dkr.ecr.eu-central-1.amazonaws.com/orwa-booking:latest
+        - 197795502251.dkr.ecr.eu-central-1.amazonaws.com/orwa-booking:${BUILD:-latest}
+    container_name: orwa-booking
+    restart: always
+    # Nincs `ports:` — belső backend; a két frontend Caddyja néven éri el (orwa-booking:8000).
+    # Nincs `env_file:` / titok — az e-mail auth nélkül megy (aspmx).
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/data/orwa.db       # nincs SEED_DEMO → üres DB (élesben a migrált DB)
+    volumes:
+      - orwa_booking_data:/data     # orwa.db (+WAL): bookings + quote_requests — PERZISZTENS
+
+volumes:
+  orwa_booking_data:

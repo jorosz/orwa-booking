@@ -3,11 +3,11 @@
 // A helyi pénznemre váltás a frontenden történik (rate-tel), itt minden EUR.
 //
 // Szabályok (lásd SPEC.md §Árazás):
-//   • Apartman (max 4 fő/egység):  2 fő 55–60 · 3 fő 60–65 · 4 fő 65–70 €/éj
-//   • Vendégház (2–8 fő):          min = 120 + 5·(fő−2),  max = 130 + 5·(fő−2)
+//   • Apartman (max 4 fő/egység):  2 fő 55–65 · 3 fő 60–70 · 4 fő 65–75 €/éj (spread 10)
+//   • Vendégház (2–8 fő):          min = 120 + 5·(fő−2),  max = 135 + 5·(fő−2)  (spread 15)
 //   • Ajánlatok ≤8 főig: apartman ÉS vendégház egyszerre. Sorrend: ≤3 fő →
 //     apartman elöl; 4–8 fő → vendégház elöl + 2 apartman (ár szorzódik).
-//   • >8 fő: csak apartman, qty = ceil(fő/4), fix 60 €/éj (a mostani kerekítés).
+//   • >8 fő: csak apartman, qty = ceil(fő/4), 60–70 €/éj (spread 10).
 //   • Felár a tartomány MINDKÉT végére: 1 éj +20%, 2 éj +10%.
 //
 // CSAK ELÉRHETŐ AJÁNLAT JÖHET: az ajánlat vagy szabad a naptárban, vagy meg sem
@@ -17,38 +17,54 @@
 // ============================================================
 'use strict'
 
-const SURCHARGE = { 1: 1.20, 2: 1.10 } // éjszakaszám → szorzó (egyébként 1)
+// ── Árak (EUR/éj). Minden hangolható szám EGY helyen — a logika lentebb. ──────
+const CONFIG = {
+  // Apartman egységár (1 egység), a benne lakó létszám szerint. Spread 10.
+  apartmentRate: {
+    2: { min: 55, max: 65 },
+    3: { min: 60, max: 70 },
+    4: { min: 65, max: 75 },
+  },
+  // Nagy csoport (>8 fő): minden apartman fix bulk-áron, létszámtól függetlenül.
+  apartmentBulkRate: { min: 60, max: 70 },
+  // Vendégház (egész ház): 2 fős bázis + főnkénti lépés (2 fő felett). Spread 15.
+  houseBase: { min: 120, max: 135 }, // 2 főre
+  houseStepPerGuest: 5,              // minden további fő (2 felett) ennyivel emel
+  // Éjszakaszám-felár: szorzó éjszakaszám szerint (a többi → 1).
+  surcharge: { 1: 1.20, 2: 1.10 },
+}
 
-// Apartman egységár (1 egység, adott létszámra), 2–4 fő közé szorítva.
+// Apartman egységár adott létszámra, 2–4 fő közé szorítva.
 function apartmentRate(guests) {
   const g = Math.min(Math.max(guests, 2), 4)
-  if (g <= 2) return { min: 55, max: 60 }
-  if (g === 3) return { min: 60, max: 65 }
-  return { min: 65, max: 70 } // 4 fő
+  return CONFIG.apartmentRate[g]
 }
 
 // Vendégház ár (egész ház), 2–8 fő.
 function houseRate(guests) {
   const g = Math.min(Math.max(guests, 2), 8)
-  return { min: 120 + 5 * (g - 2), max: 130 + 5 * (g - 2) }
+  const step = CONFIG.houseStepPerGuest * (g - 2)
+  return { min: CONFIG.houseBase.min + step, max: CONFIG.houseBase.max + step }
 }
 
 // Felár a per-éj tartományra, kerekítve egész euróra.
 function withSurcharge(rate, nights) {
-  const m = SURCHARGE[nights] || 1
+  const m = CONFIG.surcharge[nights] || 1
   return { min: Math.round(rate.min * m), max: Math.round(rate.max * m) }
 }
 
-// Egy ajánlat objektum. A perNight* per EGYSÉG; a total* a qty-t és az
-// éjszakákat is beszámítja. (Minden visszaadott ajánlat eleve elérhető.)
+// Egy ajánlat objektum. A `perNight` paraméter per EGYSÉG jön be, de a kimeneti
+// perNight*/total* az EGÉSZ ajánlatra szól (qty-vel szorozva) — így 2 apartmannál
+// a per-éj range (és a spreadje) is duplázódik. total* még az éjszakákat is
+// beszámítja. (Minden visszaadott ajánlat eleve elérhető.)
 function makeOffer(type, qty, perNight, nights) {
   return {
     type,
     qty,
-    perNightMin: perNight.min,
-    perNightMax: perNight.max,
-    totalMin: perNight.min * nights * qty,
-    totalMax: perNight.max * nights * qty,
+    perNightMin: perNight.min * qty,
+    perNightMax: perNight.max * qty,
+    totalMin: perNight.min * qty * nights,
+    totalMax: perNight.max * qty * nights,
   }
 }
 
@@ -60,7 +76,7 @@ export function priceOffers(nights, guests, avail) {
   if (guests > 8) {
     const qty = Math.ceil(guests / 4)
     if (avail.apartmentsFree < qty) return []
-    const per = withSurcharge({ min: 60, max: 60 }, nights)
+    const per = withSurcharge(CONFIG.apartmentBulkRate, nights)
     return [makeOffer('apartman', qty, per, nights)]
   }
 

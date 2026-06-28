@@ -22,7 +22,7 @@ ENV NODE_ENV=production
 COPY --from=base /app/node_modules ./node_modules
 COPY package.json ./
 COPY server ./server
-# /data: az orwa.db (+WAL) és a quotes.log perzisztens volume-on él.
+# /data: az orwa.db (+WAL) perzisztens volume-on él (bookings + quote_requests táblák).
 VOLUME ["/data"]
 EXPOSE 8000
 CMD ["node", "server/index.js"]

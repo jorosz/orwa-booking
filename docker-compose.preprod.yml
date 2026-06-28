@@ -1,0 +1,29 @@
+# ============================================================
+# PRE-PRODUCTION build/push. A `make preprod` ebből buildeli+pusholja a KÜLÖN
+# preprod image-et (orwa-booking-pp), hogy a preprod teszt ne írja felül a prod
+# image-et. Ugyanaz a kód, mint prodban.
+#
+# Az éles preprod futtatás a ../orwa-server/docker-compose.yml-ben van
+# (orwa-booking-pp service, saját — üres/seedelt — DB-volume; a prod foglalási
+# adatot NEM érinti).
+# ============================================================
+services:
+  orwa-booking-pp:
+    image: 197795502251.dkr.ecr.eu-central-1.amazonaws.com/orwa-booking-pp:latest
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+      tags:
+        - 197795502251.dkr.ecr.eu-central-1.amazonaws.com/orwa-booking-pp:latest
+        - 197795502251.dkr.ecr.eu-central-1.amazonaws.com/orwa-booking-pp:${BUILD:-latest}
+    container_name: orwa-booking-pp
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/data/orwa.db
+    volumes:
+      - orwa_booking_pp_data:/data
+
+volumes:
+  orwa_booking_pp_data:

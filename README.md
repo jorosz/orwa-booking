@@ -6,9 +6,6 @@ ORWA **egyesített booking backend**: a weboldal irányár-becslése (`/api/quot
 publikált port nélkül; a két frontend (orwa-new, orwa-naptar) a saját Caddy
 proxy-rétegén keresztül éri el.
 
-Korábban két külön backend volt: az `orwa-new/api/` sidecar és az
-`orwa-naptar/server/`. Ez a repó egyesíti őket.
-
 ## Dokumentáció
 
 - **[SPEC.md](SPEC.md)** — architektúra, biztonsági (path-szintű jogosultság)
@@ -36,7 +33,7 @@ server/
   pricing.js   # kétajánlatos árazás (apartman + vendégház), felárak
   db.js        # SQLite: bookings tábla, CRUD, ütközés, elérhetőség (in-process)
   validate.js  # quote/book validáció (err-kódok = kliens i18n)
-  quotes.js    # in-memory quote Map + quotes.log (NDJSON)
+  quotes.js    # quote-tár + érdeklődési napló egyben (quote_requests tábla, orwa.db)
   mail.js      # nodemailer — foglalási kérelem e-mail
 Dockerfile     # node:24-slim, better-sqlite3 natív build
 ```
@@ -44,6 +41,6 @@ Dockerfile     # node:24-slim, better-sqlite3 natív build
 ## Deploy
 
 ECR image: `orwa-booking` (prod) · `orwa-booking-pp` (preprod). Belső service,
-`/data` perzisztens volume (`orwa.db` + `quotes.log`). A live stacket az
+`/data` perzisztens volume (`orwa.db`). A live stacket az
 `../orwa-server` compose vezényli; a domain/TLS/auth az `../orwa-edge` és a két
 frontend Caddyja. Részletek a deploy-réteg összekötésekor kerülnek ide.

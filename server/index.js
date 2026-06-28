@@ -26,11 +26,15 @@ import {
 } from './db.js'
 import { priceOffers } from './pricing.js'
 import { validateQuote, validateBook, ymd } from './validate.js'
-import { saveQuote, getQuote, appendLog } from './quotes.js'
+import { saveQuote, getQuote, logBooking, logMailResult } from './quotes.js'
 import { sendBookingMail } from './mail.js'
+import { requestLogger, errorLogger, installCrashLogging } from './log.js'
+
+installCrashLogging()
 
 const app = express()
 const PORT = process.env.PORT || 8000
+app.use(requestLogger)            // egysoros access-log minden kérésről (docker logs)
 app.use(express.json({ limit: '100kb' }))
 
 // ── Health ───────────────────────────────────────────────────────────────────
@@ -59,29 +63,35 @@ app.post('/api/quote', (req, res) => {
     currency: 'EUR',
     quote: offers,
   }
-  saveQuote(result)
-  appendLog({ event: 'quote', id: result.id, checkin, checkout, guests: v.guests, nights: v.nights, available: result.available, ip: req.ip })
+  saveQuote(result, req.ip)
   res.json(result)
 })
 
 // ── PUBLIKUS: foglalási kérelem (e-mail) ─────────────────────────────────────
-app.post('/api/book', async (req, res) => {
-  const lang = /^[a-z]{2}$/.test(String(req.body.lang || '')) ? req.body.lang : 'hu'
-  const v = validateBook(req.body)
-  if (v.errors.length) return res.status(422).json({ errors: v.errors })
-
-  const q = req.body.id && getQuote(String(req.body.id))
-  if (!q) return res.status(422).json({ errors: [{ field: 'checkin', code: 'errCheckin' }] })
-
-  appendLog({ event: 'book', id: String(req.body.id), name: v.name, email: v.email, phone: v.phone, lang })
-
+app.post('/api/book', async (req, res, next) => {
   try {
-    await sendBookingMail(q, v, lang)
+    const lang = /^[a-z]{2}$/.test(String(req.body.lang || '')) ? req.body.lang : 'hu'
+    const v = validateBook(req.body)
+    if (v.errors.length) return res.status(422).json({ errors: v.errors })
+
+    const q = req.body.id && getQuote(String(req.body.id))
+    if (!q) return res.status(422).json({ errors: [{ field: 'checkin', code: 'errCheckin' }] })
+
+    const id = String(req.body.id)
+    logBooking(id, v, lang)
+
+    try {
+      await sendBookingMail(q, v, lang)
+    } catch (e) {
+      logMailResult(id, false, e && e.message)
+      console.error(`${new Date().toISOString()}  MAIL FAIL book=${id}`, e && e.stack ? e.stack : e)
+      return res.status(500).json({ success: false, error: 'mail' })
+    }
+    logMailResult(id, true)
+    res.json({ success: true })
   } catch (e) {
-    console.error('[book] mail error:', e && e.message)
-    return res.status(500).json({ success: false, error: 'mail' })
+    next(e)   // váratlan hiba → errorLogger (teljes stacktrace a stderr-re)
   }
-  res.json({ success: true })
 })
 
 // ── ADMIN: foglalások (a naptár-frontend hívja, auth mögött) ─────────────────
@@ -118,6 +128,9 @@ app.post('/api/bookings/:id/delete', (req, res) => {
   res.json(deleted)
 })
 
+// ── Hibakezelő middleware (utolsóként, a route-ok után) ──────────────────────
+app.use(errorLogger)
+
 app.listen(PORT, () => {
-  console.log(`ORWA booking backend listening on :${PORT}`)
+  console.log(`${new Date().toISOString()}  ORWA booking backend listening on :${PORT}`)
 })
