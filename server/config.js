@@ -31,3 +31,8 @@ export const PRICING = {
   // Éjszakaszám-felár: szorzó éjszakaszám szerint (a többi → 1).
   surcharge: { 1: 1.20, 2: 1.10 },
 }
+
+// ── E-mail pénznem ────────────────────────────────────────────────────────────
+// A tulajnak menő levélben magyar nyelvnél (lang === 'hu') Ft-ban írjuk az árat,
+// EUR × ennyi árfolyammal. Más nyelvnél EUR marad.
+export const MAIL_HUF_RATE = 400

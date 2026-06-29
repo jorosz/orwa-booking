@@ -30,6 +30,8 @@ db.exec(`
     email       TEXT,
     phone       TEXT,
     lang        TEXT,
+    note        TEXT,               -- egyéb megjegyzés / különleges kérés (szabad szöveg)
+    preferred   INTEGER,            -- a megjelölt ajánlat indexe az offers tömbben (NULL = nincs)
     -- e-mail kimenet ────────────────────────────────────────────────────────
     mailStatus  TEXT,               -- NULL (nem volt foglalás) | 'sent' | 'failed'
     mailError   TEXT                -- hibaüzenet, ha 'failed'
@@ -38,7 +40,7 @@ db.exec(`
 
 // Migráció: ha egy korábbi (offers/currency nélküli) tábla már létezik, pótoljuk.
 const existingCols = new Set(db.prepare('PRAGMA table_info(quote_requests)').all().map(c => c.name))
-for (const [name, decl] of [['currency', 'TEXT'], ['offers', 'TEXT']]) {
+for (const [name, decl] of [['currency', 'TEXT'], ['offers', 'TEXT'], ['note', 'TEXT'], ['preferred', 'INTEGER']]) {
   if (!existingCols.has(name)) db.exec(`ALTER TABLE quote_requests ADD COLUMN ${name} ${decl}`)
 }
 
@@ -87,7 +89,8 @@ export function getQuote(id) {
 const bookStmt = db.prepare(`
   UPDATE quote_requests SET
     booked = 1, bookedAt = @bookedAt,
-    name = @name, email = @email, phone = @phone, lang = @lang
+    name = @name, email = @email, phone = @phone, lang = @lang,
+    note = @note, preferred = @preferred
   WHERE id = @id
 `)
 
@@ -100,6 +103,9 @@ export function logBooking(id, b, lang) {
     email: b.email,
     phone: b.phone,
     lang,
+    // better-sqlite3 nem fogad undefined-et → null, ha nincs megjegyzés/jelölés
+    note: b.note || null,
+    preferred: Number.isInteger(b.preferred) ? b.preferred : null,
   })
 }
 

@@ -75,5 +75,14 @@ export function validateBook(input) {
   if (email !== email2) errors.push({ field: 'email2', code: 'errEmailMatch' })
   if (!/^[0-9+\-\s]{8,}$/.test(phone)) errors.push({ field: 'phone', code: 'errPhone' })
 
-  return { errors, name, email, phone }
+  // Opcionális mezők — nem validálási hiba, csak sanitizálás:
+  //   note: szabad szöveg (egyéb megjegyzés / különleges kérés), max 2000 karakter.
+  //   preferred: a megjelölt ajánlat indexe az offers tömbben (≥0 egész, vagy null).
+  //   A tartomány-ellenőrzést (index < offers.length) a hívó végzi, ahol a tárolt
+  //   quote elérhető — érvénytelen indexet ott figyelmen kívül hagyunk.
+  const note = String((input && input.note) || '').trim().slice(0, 2000)
+  const p = input && input.preferred
+  const preferred = Number.isInteger(p) && p >= 0 ? p : null
+
+  return { errors, name, email, phone, note, preferred }
 }

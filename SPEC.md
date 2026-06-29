@@ -84,8 +84,9 @@ Minden EUR/éj, **tartomány** (min–max); a helyi pénznemre váltás a fronte
 - **Vendégház** (2–8 fő): `min = 120 + 5·(fő−2)`, `max = 135 + 5·(fő−2)` (spread 15).
 - **Ajánlatok ≤8 főig: apartman ÉS vendégház egyszerre.** Sorrend (javaslat):
   - ≤3 fő → **apartman elöl** (1 egység), mellette vendégház.
-  - 4–8 fő → **vendégház elöl**, mellette **2 apartman** (ár szorzódik; egységenként
-    `ceil(fő/2)` fő szerinti apartman-ár).
+  - 4–8 fő → **vendégház elöl**, mellette **2 apartman** (egységenként
+    `ceil(fő/2)` fő szerinti apartman-ár; a `total*` az összes egységre, a
+    `perNight*` **egy szállásra** szól).
 - **>8 fő:** csak apartman, `qty = ceil(fő/4)`, `60–70 €/éj` (spread 10; a meglévő
   kerekítés — nem bonyolítjuk; a vendégház max 8 fő).
 - **Felár** a tartomány **mindkét** végére: **1 éj +20%**, **2 éj +10%** (3+ éj: nincs).
@@ -111,7 +112,10 @@ Validáció (hibakód = kliens i18n-kulcs): `errCheckin`, `errPast`, `errMinAdva
 `errMaxGuests`. Bármely hiba → `422 { errors: [{ field, code, vars? }] }`.
 
 Kimenet (a `quote` tömb az **elérhető** ajánlatokat tartalmazza, javaslati
-sorrendben — **0–2 elem**; `available` = van-e egyáltalán ajánlat):
+sorrendben — **0–2 elem**; `available` = van-e egyáltalán ajánlat). A
+`perNightMin`/`perNightMax` **egy szállásra** (egységre) vonatkozik, a
+`totalMin`/`totalMax` pedig a teljes ajánlatra (`qty × éjszakák`) — lásd lent a
+`qty: 2` apartmanos sort:
 ```json
 {
   "id": "uuid", "available": true,
@@ -131,15 +135,24 @@ A teljes válasz (az ajánlatokkal együtt) egy sorként a `quote_requests` táb
 
 ### `POST /api/book` — foglalási kérelem
 
-Bemenet: `{ "id": "uuid", "name", "email", "email2", "phone", "lang" }`.
+Bemenet: `{ "id": "uuid", "name", "email", "email2", "phone", "lang", "note?", "preferred?" }`.
+- `note` (opcionális): szabad szöveg — egyéb megjegyzés / különleges kérés (pl. kisállat,
+  pótágy). Trimmelve, max 2000 karakter; nincs külön validációs hiba.
+- `preferred` (opcionális): a megjelölt ajánlat **indexe** a tárolt `offers` tömbben
+  (≥0 egész). Tartományon kívüli / hiányzó érték → figyelmen kívül hagyva.
 Validáció: `errName`, `errEmail`, `errEmailMatch`, `errPhone`; ismeretlen `id` → 422.
-Hatás: a `quote_requests` sor frissül (booked + a vendég adatai + e-mail státusz)
-és plain-text e-mail megy a tulajnak (a tárolt quote-ból, **minden ajánlattal**).
+Hatás: a `quote_requests` sor frissül (booked + a vendég adatai + `note`/`preferred` +
+e-mail státusz) és plain-text e-mail megy a tulajnak (a tárolt quote-ból, **minden
+ajánlattal**; a megjelölt szállás és a megjegyzés külön sorként, ha van).
 Válasz: `{ "success": true }`.
 
 **E-mail (auth nélkül, mint az orwaweb):** közvetlenül az orwa.hu MX-ére —
 `aspmx.l.google.com:25`, nincs SMTP-jelszó/titok, STARTTLS opportunisztikus.
 From `admin@orwa.hu`, To `orosz@orwa.hu`, Reply-To a vendég. (`server/mail.js`)
+Az árakat magyar nyelvű kérelemnél (`lang === 'hu'`) **Ft**-ban írjuk
+(EUR × `MAIL_HUF_RATE`, default 400; `server/config.js`), egyébként EUR-ban.
+A `MAIL_HUF_RATE` árfolyamot **a frontend EUR→Ft árfolyamával szinkronban kell
+tartani**, hogy a vendég és a tulaj ugyanazt az összeget lássa.
 
 ### `GET /api/bookings?year=&month=` — a hónap foglalásai (admin)
 

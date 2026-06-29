@@ -39,16 +39,16 @@ function withSurcharge(rate, nights) {
   return { min: Math.round(rate.min * m), max: Math.round(rate.max * m) }
 }
 
-// Egy ajánlat objektum. A `perNight` paraméter per EGYSÉG jön be, de a kimeneti
-// perNight*/total* az EGÉSZ ajánlatra szól (qty-vel szorozva) — így 2 apartmannál
-// a per-éj range (és a spreadje) is duplázódik. total* még az éjszakákat is
-// beszámítja. (Minden visszaadott ajánlat eleve elérhető.)
+// Egy ajánlat objektum. A `perNight` paraméter per SZÁLLÁS (egység) jön be, és a
+// kimeneti perNight* IS per szállásra szól (qty-vel NEM szorozva) — így 2
+// apartmannál a per-éj range egy apartman ára marad. A total* viszont az EGÉSZ
+// ajánlatra (qty × éjszakák). (Minden visszaadott ajánlat eleve elérhető.)
 function makeOffer(type, qty, perNight, nights) {
   return {
     type,
     qty,
-    perNightMin: perNight.min * qty,
-    perNightMax: perNight.max * qty,
+    perNightMin: perNight.min,
+    perNightMax: perNight.max,
     totalMin: perNight.min * qty * nights,
     totalMax: perNight.max * qty * nights,
   }
