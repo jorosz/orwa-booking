@@ -46,11 +46,10 @@ function bookingEmailText(q, b, lang) {
     `Érkezés:  ${q.checkin}`,
     `Távozás:  ${q.checkout}`,
     `Éjszakák: ${q.nights}`,
-    `Létszám:  ${q.guests}`,
+    `Létszám:  ${q.guests} fő`,
     '',
     'Irányár-ajánlat(ok):',
     offers,
-    q.available === false ? '\n[!] A kért időpontra a naptár szerint NINCS szabad szállás.' : '',
   ].join('\n')
 }
 

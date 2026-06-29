@@ -6,7 +6,7 @@
 //   • Apartman (max 4 fő/egység):  2 fő 55–65 · 3 fő 60–70 · 4 fő 65–75 €/éj (spread 10)
 //   • Vendégház (2–8 fő):          min = 120 + 5·(fő−2),  max = 135 + 5·(fő−2)  (spread 15)
 //   • Ajánlatok ≤8 főig: apartman ÉS vendégház egyszerre. Sorrend: ≤3 fő →
-//     apartman elöl; 4–8 fő → vendégház elöl + 2 apartman (ár szorzódik).
+//     apartman elöl; 4–8 fő → vendégház elöl, 5 főtől 2 apartman
 //   • >8 fő: csak apartman, qty = ceil(fő/4), 60–70 €/éj (spread 10).
 //   • Felár a tartomány MINDKÉT végére: 1 éj +20%, 2 éj +10%.
 //
@@ -80,10 +80,10 @@ export function priceOffers(nights, guests, avail) {
     return [makeOffer('apartman', qty, per, nights)]
   }
 
-  // Apartman ajánlat: ≤3 fő → 1 egység; 4–8 fő → 2 egység (létszám fele/egység).
+  // Apartman ajánlat: ≤4 fő → 1 egység; 5–8 fő → 2 egység (létszám fele/egység).
   // Csak ha van elég szabad egység.
-  const aptQty = guests <= 3 ? 1 : 2
-  const aptGuestsPerUnit = guests <= 3 ? guests : Math.ceil(guests / 2)
+  const aptQty = guests <= 4 ? 1 : 2
+  const aptGuestsPerUnit = guests <= 4 ? guests : Math.ceil(guests / 2)
   const aptOffer = avail.apartmentsFree >= aptQty
     ? makeOffer('apartman', aptQty, withSurcharge(apartmentRate(aptGuestsPerUnit), nights), nights)
     : null
