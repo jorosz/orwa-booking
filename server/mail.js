@@ -1,11 +1,15 @@
 // ============================================================
 // E-mail — foglalási kérelem a tulajnak (nodemailer).
 //
-// AUTH NÉLKÜLI küldés, ahogy az orwaweb (public/api/book.php): közvetlenül az
-// orwa.hu MX-ére (aspmx.l.google.com:25) — NINCS SMTP-jelszó, NINCS titok. Az
-// aspmx jelszó nélkül fogadja az orwa.hu-ra címzett levelet (ez a domain MX-e).
-// STARTTLS opportunisztikus; a cert-nevet nem kényszerítjük (deliverability >
-// szigorú TLS-verifikáció ehhez a belső, inbound-MX küldéshez).
+// Google Workspace SMTP relay-en megy (smtp-relay.gmail.com:587), IP-alapú
+// hitelesítéssel — NINCS SMTP-jelszó, NINCS titok a konténerben. A relay az
+// orwa-server fix IP-jét (46.101.188.98) engedi, és a Google DKIM-aláírja a
+// levelet az orwa.hu nevében (google selector). Így SPF + DKIM aligned → nem
+// esik spambe (szemben a korábbi auth-less, aláíratlan aspmx:25 küldéssel).
+//
+// Workspace admin: Gmail → Routing → SMTP relay service (Only registered Apps
+// users in my domains + only-from-IP + require TLS). A `from` ezért valódi
+// fiók (orosz@orwa.hu), nem alias.
 //
 // A törzs a tárolt quote-ból dolgozik (nem a kliensből) → nem hamisítható ár.
 // Akár KÉT ajánlat (apartman + vendégház) szerepelhet a quote-ban.
@@ -15,14 +19,14 @@
 import nodemailer from 'nodemailer'
 import { MAIL_HUF_RATE } from './config.js'
 
-const MAIL_FROM = 'ORWA Admin <admin@orwa.hu>'
+const MAIL_FROM = 'ORWA <orosz@orwa.hu>'
 const MAIL_TO = 'ORWA <orosz@orwa.hu>'
 
 const transporter = nodemailer.createTransport({
-  host: 'aspmx.l.google.com',
-  port: 25,
-  secure: false,                       // STARTTLS opportunisztikusan, ha támogatott
-  tls: { rejectUnauthorized: false },  // ne bukjon cert-név-eltérésen (mint az orwaweb)
+  host: 'smtp-relay.gmail.com',
+  port: 587,
+  secure: false,        // STARTTLS a 587-en
+  requireTLS: true,     // a relay TLS-t kényszerít — ne menjen titkosítatlanul
 })
 
 const typeLabel = { apartman: 'apartman', house: 'vendégház' }
