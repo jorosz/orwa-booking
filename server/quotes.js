@@ -7,6 +7,7 @@
 // ============================================================
 'use strict'
 
+import { createHash } from 'node:crypto'
 import { db } from './db.js'
 
 // ── Séma ─────────────────────────────────────────────────────────────────────
@@ -109,4 +110,24 @@ const mailStmt = db.prepare(`
 // E-mail kimenet naplózása (/api/book a küldés után).
 export function logMailResult(id, ok, error) {
   mailStmt.run({ id, status: ok ? 'sent' : 'failed', error: ok ? null : (error || 'unknown') })
+}
+
+// ── Karbantartás: PII anonimizálás 3 hónap után (BACKUP.md §3) ───────────────
+// A PII-ra csak rövid távon van szükség (beragadt e-mail diagnózisa). 3 hónap után
+// a sor marad (statisztika), de a `name`-et hasheljük, a többi PII-t töröljük.
+const hashName = s => (s ? createHash('sha256').update(s).digest('hex').slice(0, 16) : null)
+const oldQuotesStmt = db.prepare(`
+  SELECT id, name FROM quote_requests
+  WHERE name IS NOT NULL AND ts < datetime('now', '-3 months')
+`)
+const anonStmt = db.prepare(`
+  UPDATE quote_requests SET name = @name, email = NULL, phone = NULL, ip = NULL WHERE id = @id
+`)
+const anonTxn = db.transaction(rows => {
+  for (const r of rows) anonStmt.run({ id: r.id, name: hashName(r.name) })
+})
+export function anonymizeOldQuotes() {
+  const rows = oldQuotesStmt.all()
+  anonTxn(rows)
+  return rows.length
 }

@@ -10,6 +10,9 @@ proxy-rétegén keresztül éri el.
 
 - **[SPEC.md](SPEC.md)** — architektúra, biztonsági (path-szintű jogosultság)
   határ, árazás, végpontok, adatmodell, frontend-TODO-k.
+- **[DEPLOY.md](DEPLOY.md)** — build/push, futási kontraktus, cutover, üzemeltetés.
+- **[BACKUP.md](BACKUP.md)** — mentés (S3), törölt-adat végleges törlése,
+  PII-anonimizálás, AWS-setup.
 
 ## Gyors start
 
@@ -35,6 +38,7 @@ server/
   validate.js  # quote/book validáció (err-kódok = kliens i18n)
   quotes.js    # quote-tár + érdeklődési napló egyben (quote_requests tábla, orwa.db)
   mail.js      # nodemailer — foglalási kérelem e-mail
+  maintenance.js # napi backup (S3) + törölt-foglalás purge + quote-anonimizálás (cron)
 Dockerfile     # node:24-slim, better-sqlite3 natív build
 ```
 
@@ -43,4 +47,4 @@ Dockerfile     # node:24-slim, better-sqlite3 natív build
 ECR image: `orwa-booking` (prod) · `orwa-booking-pp` (preprod). Belső service,
 `/data` perzisztens volume (`orwa.db`). A live stacket az
 `../orwa-server` compose vezényli; a domain/TLS/auth az `../orwa-edge` és a két
-frontend Caddyja. Részletek a deploy-réteg összekötésekor kerülnek ide.
+frontend Caddyja. Részletek: [DEPLOY.md](DEPLOY.md) és [BACKUP.md](BACKUP.md).

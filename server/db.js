@@ -16,6 +16,9 @@ const dbPath = process.env.DB_PATH || path.join(__dirname, 'orwa.db')
 
 export const db = new Database(dbPath)
 db.pragma('journal_mode = WAL')
+// Törléskor a felszabaduló lapokat nullázzuk (nem csak felszabadítjuk), hogy a
+// törölt PII forenzikusan se maradjon vissza az élő fájlban. Lásd BACKUP.md.
+db.pragma('secure_delete = ON')
 
 // ── Séma ────────────────────────────────────────────────────────────────────
 db.exec(`
@@ -188,6 +191,19 @@ export function deleteBooking(id) {
   b.log.push({ timestamp: stamp(), message: 'Foglalás törölve' })
   deleteStmt.run({ id, log: JSON.stringify(b.log) })
   return getById(id)
+}
+
+// ── Karbantartás: törölt + lejárt foglalások VÉGLEGES törlése (BACKUP.md §2) ──
+// A soft-delete (deleted=1) csak elrejt; ez a hard-delete a `departure` után
+// ténylegesen kiveszi a sort. secure_delete=ON mellett a byte-ok is nullázódnak.
+const purgeStmt = db.prepare(`DELETE FROM bookings WHERE deleted = 1 AND departure < date('now')`)
+export function purgeExpiredDeletedBookings() {
+  return purgeStmt.run().changes
+}
+
+// Konzisztens, szabad-lapok nélküli snapshot a megadott (még nem létező) útra.
+export function snapshotTo(targetPath) {
+  db.exec(`VACUUM INTO '${targetPath.replace(/'/g, "''")}'`)
 }
 
 // ── Elérhetőség (a quote-árazás hívja, in-process) ───────────────────────────

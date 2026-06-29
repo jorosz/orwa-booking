@@ -12,7 +12,9 @@
     "dev": "SEED_DEMO=1 node --watch server/index.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
     "better-sqlite3": "^11.8.1",
+    "croner": "^10.0.1",
     "express": "^4.21.2",
     "nodemailer": "^6.9.16"
   }

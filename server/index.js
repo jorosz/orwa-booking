@@ -29,6 +29,7 @@ import { validateQuote, validateBook, ymd } from './validate.js'
 import { saveQuote, getQuote, logBooking, logMailResult } from './quotes.js'
 import { sendBookingMail } from './mail.js'
 import { requestLogger, errorLogger, installCrashLogging } from './log.js'
+import { startMaintenance } from './maintenance.js'
 
 installCrashLogging()
 
@@ -134,3 +135,7 @@ app.use(errorLogger)
 app.listen(PORT, () => {
   console.log(`${new Date().toISOString()}  ORWA booking backend listening on :${PORT}`)
 })
+
+// Napi karbantartás (backup + purge + anonimizálás) — csak élesben, hogy a
+// lokális/seed adatot ne piszkálja. Lásd maintenance.js / BACKUP.md.
+if (process.env.NODE_ENV === 'production') startMaintenance()
