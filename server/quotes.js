@@ -151,3 +151,17 @@ export function anonymizeOldQuotes() {
   anonTxn(rows)
   return rows.length
 }
+
+// ── Karbantartás: foglalás nélküli quote-sorok megőrzése csak tárgyév + előző év ─
+// A puszta irányár-kérésekből (amikből nem lett foglalási kérelem: booked=0) a
+// tábla korlátlanul nőne — ezeket csak a tárgyévre és az előző évre tartjuk meg,
+// az ennél régebbieket véglegesen töröljük. A foglalássá vált sorokat (booked=1,
+// valódi üzleti rekord) ez SOHA nem érinti, koruktól függetlenül.
+// `start of year` = idei jan. 1.; `-1 year` → tavalyi jan. 1. (a megtartás alsó határa).
+const purgeOldQuotesStmt = db.prepare(`
+  DELETE FROM quote_requests
+  WHERE booked = 0 AND ts < datetime('now', 'start of year', '-1 year')
+`)
+export function purgeOldUnbookedQuotes() {
+  return purgeOldQuotesStmt.run().changes
+}

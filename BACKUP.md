@@ -76,25 +76,39 @@ a sort nem töröljük (statisztikának jó), csak a PII-t anonimizáljuk **hely
 (`secure_delete=ON` mellett az UPDATE-tel felszabaduló régi byte-ok is
 nullázódnak; a `VACUUM INTO`-s mentés pedig eleve nem viszi a szabad lapokat.)
 
-## 4. Ütemezés
+## 4. quote_requests — foglalás nélküli sorok purge (napi)
 
-Mindhárom job napi egyszer, **hajnali 1-kor**, a meglévő Node-processzen belül
+A puszta irányár-kérések (`booked=0`, sosem lett belőlük foglalási kérelem)
+korlátlanul hizlalnák a táblát — egy bot percenként tucatjával gyárthat ilyet.
+Ezekből csak a **tárgyévet és az előző évet** tartjuk meg, a régebbieket
+**véglegesen töröljük** (`DELETE`, `secure_delete` mellett). A foglalássá vált
+sorokat (`booked=1`, valódi üzleti rekord) ez **soha** nem érinti, koruktól
+függetlenül.
+
+A határ az előző év január 1-je (`datetime('now','start of year','-1 year')`),
+így pl. 2026-ban minden 2025-01-01 előtti, foglalás nélküli sor törlődik. (A §3
+szerint ezek a megmaradó tavalyi/idei sorok 3 hónap után már anonim
+statisztikák — a purge azt fogja meg, hogy évek alatt ne nőjön a tábla.)
+
+## 5. Ütemezés
+
+Mind a négy job napi egyszer, **hajnali 1-kor**, a meglévő Node-processzen belül
 (in-process, nem sidecar). A `server/maintenance.js` a `croner` cron-libbel
-ütemezi, és ebben a sorrendben futtat: **backup → bookings-purge →
+ütemezi, és ebben a sorrendben futtat: **backup → bookings-purge → quote-purge →
 quote-anonimizálás** (előbb mentsünk, aztán töröljünk). A SQL a `db.js` /
 `quotes.js` connection-jén megy (`secure_delete` pragma).
 
 **Időzóna:** a `croner` a `timezone: 'Europe/Budapest'` opcióval ICU-n át kezeli
 az időt (DST-helyes).
 
-## 5. Amit ez NEM fed le
+## 6. Amit ez NEM fed le
 
 - **E-mail postafiók** (`orosz@orwa.hu`): a kiküldött foglalási levelek ott
   maradnak, a rendszer nem törli. Külön, kézi szokás.
 - **Kézi mentés-másolat** (letöltött `.db`, fejlesztői gép): megöli a 30 napos
   garanciát. Egyetlen bucket, kötelező lifecycle, máshol nincs másolat.
 
-## 6. AWS-setup (egyszeri, kézzel)
+## 7. AWS-setup (egyszeri, kézzel)
 
 A fiók: `197795502251`, régió `eu-central-1`. Bucket: `orwa-booking-backup`
 Két IAM-szereplő:
@@ -103,7 +117,7 @@ Két IAM-szereplő:
 - **technikai user** (`orwa-booking-backup`) = amit a service használ, **csak**
   feltöltésre — ezt **root-ként, a konzolon** gyártod
 
-### 6.1 Bucket létrehozás
+### 7.1 Bucket létrehozás
 
 A a **saját, konzolos usereddel** futtatod. Ha ennek nincs még S3-joga, told rá a konzolon a gyári **`AmazonS3FullAccess`** policy-t.
 
@@ -133,7 +147,7 @@ aws s3api put-bucket-lifecycle-configuration --bucket "$BUCKET" \
 # 5) Versioning: NEM kapcsoljuk be (alapból ki). Object Lock: SEMMIKÉPP.
 ```
 
-### 6.2 Technikai user + `s3:PutObject` policy (root-ként, a webes konzolon)
+### 7.2 Technikai user + `s3:PutObject` policy (root-ként, a webes konzolon)
 
 IAM-jogot senki CLI-userére nem teszünk → ezt a webes konzolon csinálod, **root**
 (vagy IAM-jogú konzol-user) alatt. Lépések (IAM → Users):

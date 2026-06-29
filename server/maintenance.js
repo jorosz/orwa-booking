@@ -16,7 +16,7 @@ import { Cron } from 'croner'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 import { snapshotTo, purgeExpiredDeletedBookings } from './db.js'
-import { anonymizeOldQuotes } from './quotes.js'
+import { anonymizeOldQuotes, purgeOldUnbookedQuotes } from './quotes.js'
 
 const ts = () => new Date().toISOString()
 
@@ -48,6 +48,10 @@ export async function runMaintenance() {
     const n = purgeExpiredDeletedBookings()
     console.log(`${ts()}  MAINT purge ok (${n} törölt+lejárt foglalás véglegesen törölve)`)
   } catch (e) { console.error(`${ts()}  MAINT purge FAIL`, e && e.stack ? e.stack : e) }
+  try {
+    const n = purgeOldUnbookedQuotes()
+    console.log(`${ts()}  MAINT purge-quotes ok (${n} foglalás nélküli quote-sor törölve, tárgyév+előző év előtti)`)
+  } catch (e) { console.error(`${ts()}  MAINT purge-quotes FAIL`, e && e.stack ? e.stack : e) }
   try {
     const n = anonymizeOldQuotes()
     console.log(`${ts()}  MAINT anonymize ok (${n} quote_requests PII anonimizálva)`)
