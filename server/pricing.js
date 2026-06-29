@@ -17,22 +17,8 @@
 // ============================================================
 'use strict'
 
-// ── Árak (EUR/éj). Minden hangolható szám EGY helyen — a logika lentebb. ──────
-const CONFIG = {
-  // Apartman egységár (1 egység), a benne lakó létszám szerint. Spread 10.
-  apartmentRate: {
-    2: { min: 55, max: 65 },
-    3: { min: 60, max: 70 },
-    4: { min: 65, max: 75 },
-  },
-  // Nagy csoport (>8 fő): minden apartman fix bulk-áron, létszámtól függetlenül.
-  apartmentBulkRate: { min: 60, max: 70 },
-  // Vendégház (egész ház): 2 fős bázis + főnkénti lépés (2 fő felett). Spread 15.
-  houseBase: { min: 120, max: 135 }, // 2 főre
-  houseStepPerGuest: 5,              // minden további fő (2 felett) ennyivel emel
-  // Éjszakaszám-felár: szorzó éjszakaszám szerint (a többi → 1).
-  surcharge: { 1: 1.20, 2: 1.10 },
-}
+// Hangolható árak EGY helyen: server/config.js (PRICING). Itt csak a logika.
+import { PRICING as CONFIG } from './config.js'
 
 // Apartman egységár adott létszámra, 2–4 fő közé szorítva.
 function apartmentRate(guests) {

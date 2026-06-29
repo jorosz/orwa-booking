@@ -4,13 +4,8 @@
 // ============================================================
 'use strict'
 
-export const LIMITS = {
-  minAdvanceDays: 0,
-  maxAdvanceDays: 365,
-  minNights: 1,
-  maxNights: 30,
-  maxGuests: 12,
-}
+// Validációs korlátok EGY helyen: server/config.js (LIMITS).
+import { LIMITS } from './config.js'
 
 const DAY = 86400000
 const addDays = (d, n) => new Date(d.getTime() + n * DAY)

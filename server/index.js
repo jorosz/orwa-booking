@@ -26,7 +26,7 @@ import {
 } from './db.js'
 import { priceOffers } from './pricing.js'
 import { validateQuote, validateBook, ymd } from './validate.js'
-import { saveQuote, getQuote, logBooking, logMailResult } from './quotes.js'
+import { saveQuote, getQuote, logBooking, logMailResult, countStuckBookings } from './quotes.js'
 import { sendBookingMail } from './mail.js'
 import { requestLogger, errorLogger, installCrashLogging } from './log.js'
 import { startMaintenance } from './maintenance.js'
@@ -39,7 +39,19 @@ app.use(requestLogger)            // egysoros access-log minden kérésről (doc
 app.use(express.json({ limit: '100kb' }))
 
 // ── Health ───────────────────────────────────────────────────────────────────
-app.get(['/healthz', '/api/healthz', '/api/health'], (req, res) => res.json({ ok: true }))
+// PUBLIKUS végpont → PII nem mehet bele, csak a beragadt foglalások DARABSZÁMA.
+// Monitoring (pl. UptimeRobot keyword-monitor): riasszon, ha a `"stuckBookings":0`
+// szöveg HIÁNYZIK a válaszból (azaz van elküldetlen foglalás). Beragadt =
+// booked=1 + mailStatus='failed' (lásd quotes.countStuckBookings).
+app.get(['/healthz', '/api/healthz', '/api/health'], (req, res) => {
+  let stuckBookings = 0
+  try {
+    stuckBookings = countStuckBookings()
+  } catch (e) {
+    console.error(`${new Date().toISOString()}  HEALTHZ stuck-query fail`, e && e.stack ? e.stack : e)
+  }
+  res.json({ ok: true, stuckBookings })
+})
 
 // ── PUBLIKUS: irányár + foglaltság ───────────────────────────────────────────
 app.post('/api/quote', (req, res) => {

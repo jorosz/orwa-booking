@@ -112,6 +112,20 @@ export function logMailResult(id, ok, error) {
   mailStmt.run({ id, status: ok ? 'sent' : 'failed', error: ok ? null : (error || 'unknown') })
 }
 
+// ── Beragadt (elküldetlen) foglalások — healthz/monitoring (/healthz) ─────────
+// Beragadt = lett foglalási kérelem (booked=1), de az e-mail hibára futott
+// (mailStatus='failed'). Ezek manuális utánajárást igényelnek. Csak a darabszámot
+// adjuk vissza — a /healthz PUBLIKUS, PII (név/email/hiba) nem szivároghat ki.
+// Csak az utolsó 30 nap (bookedAt) — a régi, már lekezelt esetek ne riogassanak.
+const stuckCountStmt = db.prepare(`
+  SELECT COUNT(*) AS n FROM quote_requests
+  WHERE booked = 1 AND mailStatus = 'failed'
+    AND bookedAt >= datetime('now', '-30 days')
+`)
+export function countStuckBookings() {
+  return stuckCountStmt.get().n
+}
+
 // ── Karbantartás: PII anonimizálás 3 hónap után (BACKUP.md §3) ───────────────
 // A PII-ra csak rövid távon van szükség (beragadt e-mail diagnózisa). 3 hónap után
 // a sor marad (statisztika), de a `name`-et hasheljük, a többi PII-t töröljük.
