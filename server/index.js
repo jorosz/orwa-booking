@@ -29,12 +29,17 @@ import { validateQuote, validateBook, ymd } from './validate.js'
 import { saveQuote, getQuote, logBooking, logMailResult, countStuckBookings } from './quotes.js'
 import { sendBookingMail } from './mail.js'
 import { requestLogger, errorLogger, installCrashLogging } from './log.js'
+import { rateLimit } from './ratelimit.js'
 import { startMaintenance } from './maintenance.js'
 
 installCrashLogging()
 
 const app = express()
 const PORT = process.env.PORT || 8000
+// A service Caddy reverse-proxy mögött fut (egy hop) → a valódi kliens IP az
+// X-Forwarded-For-ból jöjjön. Enélkül req.ip a proxy IP-je lenne (per-IP rate
+// limit globálissá fajulna, és a quote-log is a proxy IP-jét rögzítené).
+app.set('trust proxy', 1)
 app.use(requestLogger)            // egysoros access-log minden kérésről (docker logs)
 app.use(express.json({ limit: '100kb' }))
 
@@ -54,7 +59,8 @@ app.get(['/healthz', '/api/healthz', '/api/health'], (req, res) => {
 })
 
 // ── PUBLIKUS: irányár + foglaltság ───────────────────────────────────────────
-app.post('/api/quote', (req, res) => {
+// Egyszerű throttling: 5 kérés/perc/IP (in-memory, lásd ratelimit.js).
+app.post('/api/quote', rateLimit({ windowMs: 60_000, max: 5 }), (req, res) => {
   const v = validateQuote(req.body)
   if (v.errors.length) return res.status(422).json({ errors: v.errors })
 
